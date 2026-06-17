@@ -228,25 +228,3 @@ DATASETS=spedac1,spy \
 METHODS=rubric_guided_contrastive_synthesis \
 bash scripts/01_generate.sh
 ```
-
-## Anonymity and Release Hygiene
-
-Before publishing through Anonymous GitHub, run:
-
-```bash
-uv run python scripts/check_anonymity.py
-```
-
-The check scans release-facing code and documentation for local absolute paths,
-private IP literals, common personal email patterns, and local user names. It
-does not scan ignored benchmark data or generated outputs.
-
-Also inspect the staged files before pushing:
-
-```bash
-git status --short --ignored
-git diff --cached --stat
-```
-
-Expected ignored paths include `data/spedac1/`, `data/spy/`, `outputs/`, and
-`.venv/`.
