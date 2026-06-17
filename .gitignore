@@ -3,6 +3,7 @@
 /data/spy/
 /data/spedac1
 /data/spy
+/data_zips/
 
 # Generated experiment artifacts.
 /outputs/
