@@ -1,0 +1,56 @@
+# Benchmark data are provided separately as zip files.
+/data/spedac1/
+/data/spy/
+/data/spedac1
+/data/spy
+
+# Generated experiment artifacts.
+/outputs/
+
+# Python caches and packaging artifacts.
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Model and tokenizer artifacts.
+*.safetensors
+*.bin
+*.pt
+tokenizer.json
+tokenizer_config.json
+special_tokens_map.json
+vocab.json
+merges.txt
+
+# Local caches and logs.
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+.cache/
+.coverage
+.coverage.*
+htmlcov/
+wandb/
+*.log
+
+# Local environment and editor state.
+.env
+.env.*
+.venv/
+.serena/
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Local archives and bundles.
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z

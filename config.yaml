@@ -1,0 +1,86 @@
+seeds: [42, 123, 456]
+
+paths:
+  dataset_dir: data
+  seed_pool_dir: outputs/seed_pools
+  output_root: outputs/runs
+
+seed_pool:
+  per_label: 5
+
+methods:
+  train:
+    - official_train
+    - duplicate
+    - oneshot
+    - fewshot
+    - paraphrase
+    - rubric_guided_contrastive_synthesis
+  direct_judge:
+    - oneshot_judge
+    - fewshot_judge
+
+custom_methods:
+  rubric_guided_contrastive_synthesis: pii_bench.rubric_guided_contrastive_synthesis:rubric_guided_contrastive_synthesis
+
+generation:
+  n_samples: 2000
+  model: Qwen/Qwen3.5-9B
+  vllm_url: http://localhost:8000/v1
+  concurrency: 1
+  attempt_cap: 20000
+  endpoint_failure_cap: 16
+  timeout: 120.0
+  temperature: 1.0
+  top_p: 0.9
+  top_k:
+  presence_penalty: 0.0
+  preflight_vllm_metrics: true
+
+rubric_guided_contrastive_synthesis:
+  rubric_extraction_calls: 25
+  rubric_extraction_k: 1
+  rubric_extraction_temperature: 1.0
+  rubric_context_mode: subshot_3x3
+  pair_attempts_per_target_pair: 5
+  min_completion_rate: 0.95
+  rouge_l_threshold: 0.95
+  support_scope: all_seed
+  verifier_temperature: 0.0
+  verifier_top_p: 0.9
+  rubric_max_tokens: 900
+  pair_max_tokens: 420
+  verifier_max_tokens: 260
+
+direct_judge:
+  model: Qwen/Qwen3.5-9B
+  vllm_url: http://localhost:8000/v1
+  concurrency: 1
+  max_retries: 2
+  temperature: 0.0
+  top_p: 0.9
+
+trainer:
+  backbone: roberta-base
+  epochs: 15
+  batch_size: 8
+  lr: 1.0e-5
+  dropout: 0.3
+  max_len: 256
+  early_stopping:
+    enabled: false
+    patience: 0
+  eval_valid_size: 2000
+  eval_test_size: 0
+  eval_subsample_seed: 0
+  calibrate_threshold: false
+
+artifacts:
+  keep_predictions: true
+  keep_model_weights: false
+
+datasets:
+  spedac1:
+    display_name: SPeDaC1
+  spy:
+    display_name: SPY
