@@ -1,63 +1,82 @@
-# Lightweight PII Detection from a Few Seeds via Rubric-Guided Contrastive Synthesis
+# Training Lightweight PII Text Detectors via Rubric-Guided Contrastive Data Synthesis
 
-This repository contains the reproduction code for the paper:
+Official code for the EMNLP 2026 Industry Track paper
+**“Training Lightweight PII Text Detectors via Rubric-Guided Contrastive Data
+Synthesis.”**
 
-```text
-Lightweight PII Detection from a Few Seeds via Rubric-Guided Contrastive Synthesis
-```
+The pipeline uses a small labeled seed pool to synthesize English
+Sensitive/Non-sensitive sentences with an offline LLM, then trains
+`roberta-base` (approximately 125M parameters) for sentence-level inference.
+No LLM call is required when the trained detector is deployed.
 
-The code builds a small seed pool from labeled training data, synthesizes new
-training texts with an OpenAI-compatible vLLM server, trains a RoBERTa classifier
-on the synthesized data, and evaluates it on the official test split.
+## What is included
 
-No benchmark data or generated outputs are included in this repository.
+- the proposed rubric-guided contrastive synthesis method;
+- duplicate, paraphrase, one-shot, and few-shot synthesis baselines;
+- the camera-ready fixed-task Self-Instruct adaptation;
+- RoBERTa training and evaluation.
 
-## Method
+Benchmark text, generated corpora, result tables, item-level predictions,
+induced rubrics, human ratings, model checkpoints, and credentials are not
+distributed. The paper and its appendix report the experimental results. See
+[data/README.md](data/README.md) for the benchmark-data requirements.
 
-The paper's proposed method is exposed as:
+## Proposed method
 
-```text
-rubric_guided_contrastive_synthesis
-```
+The public method name is `rubric_guided_contrastive_synthesis`. For each seed
+pool, it:
 
-It uses the following fixed pipeline.
+1. samples five Sensitive and five Non-sensitive examples;
+2. induces 25 dataset-specific label-decision rubrics from 3+3 subsets;
+3. generates minimally different Sensitive/Non-sensitive pairs using the full
+   5+5 pool and one rubric;
+4. applies a separate LLM verifier;
+5. rejects normalized exact matches and candidates with ROUGE-L F1 at least
+   0.95 against the seeds or previously accepted generations;
+6. trains RoBERTa on the accepted sentences.
 
-1. Sample a seed pool with 5 Sensitive and 5 Non-sensitive examples.
-2. Build 25 support subsets, each with 3 Sensitive and 3 Non-sensitive examples.
-3. Ask the LLM to induce one rubric from each subset.
-4. Use the rubrics to generate matched Sensitive / Non-sensitive text pairs.
-5. Reject exact copies, ROUGE-L near copies, malformed texts, and pairs rejected by a separate LLM verifier.
-6. Train RoBERTa on accepted synthetic texts and evaluate on the test split.
+The main experiment targets 2,000 balanced examples per run. This common count
+was fixed before the main comparison to balance generation time and classifier
+training data while keeping methods, datasets, and generators comparable; it is
+not claimed to be a per-dataset optimum.
 
-Default synthesis parameters:
+## Matched Self-Instruct adaptation
 
-| Setting | Value |
-|---|---:|
-| rubric induction calls | 25 |
-| rubrics per call | 1 |
-| pair attempts per target pair | 5 |
-| ROUGE-L reject threshold | 0.95 |
-| generation temperature | 1.0 |
-| generation top_p | 0.9 |
-| generation top_k | unset |
-| verifier temperature | 0.0 |
+The camera-ready baseline is `self_instruct_faithful_neutral`. It adapts
+Self-Instruct to one fixed binary classification task without adding the
+proposed method's paired generation:
 
-## Environment
+1. initialize a shared pool with six generic human-written privacy-decision
+   instructions that are identical across datasets;
+2. prompt with all six seed instructions and up to two accepted model-generated
+   instructions;
+3. accept a new instruction only when its ROUGE-L F1 is below 0.7 against every
+   instruction already in the pool, then reuse it in later iterations;
+4. select the target label before generation and independently synthesize one
+   sentence for that label from a sampled pooled instruction and the same 5+5
+   labeled seed examples;
+5. use the same verifier, normalized exact-match filter, instance-level ROUGE-L
+   threshold of 0.95, generators, sampling settings, and 2,000-example target as
+   the proposed method.
 
-Install dependencies with `uv`.
+Generated sentences are not reused as demonstrations. The full prompts are in
+`src/pii_bench/self_instruct_faithful_neutral.py`.
+
+## Installation
+
+Python 3.10 or later and [`uv`](https://docs.astral.sh/uv/) are recommended.
 
 ```bash
 uv sync
 ```
 
-For local vLLM serving, install the optional serving dependencies.
+For local vLLM serving:
 
 ```bash
 uv sync --extra serve
 ```
 
-The default generator is `Qwen/Qwen3.5-9B`. Start an OpenAI-compatible vLLM
-server in a separate terminal:
+Start an OpenAI-compatible endpoint in a separate terminal. For example:
 
 ```bash
 uv run vllm serve Qwen/Qwen3.5-9B \
@@ -67,164 +86,77 @@ uv run vllm serve Qwen/Qwen3.5-9B \
   --gpu-memory-utilization 0.9
 ```
 
-The benchmark CLI connects to `http://localhost:8000/v1` by default. Use
-`VLLM_URL` or `--vllm-url` to point to a different OpenAI-compatible endpoint.
+The default endpoint is `http://localhost:8000/v1`. Override it with
+`VLLM_URL` or `--vllm-url`.
 
-## Data
+## Data layout
 
-Prepare zip files for SPeDaC1 and SPY outside this repository, then unzip them
-under `data/`.
-
-Required layout:
+Place licensed copies of the processed benchmarks under `data/`:
 
 ```text
-data/spedac1/train.jsonl
-data/spedac1/valid.jsonl
-data/spedac1/test.jsonl
-data/spedac1/label_map.yaml        # optional
-
-data/spy/train.jsonl
-data/spy/valid.jsonl
-data/spy/test.jsonl
-data/spy/label_map.yaml            # optional
+data/spedac1/{train,valid,test}.jsonl
+data/spy/{train,valid,test}.jsonl
 ```
 
-Each JSONL row must contain at least:
+Each row must contain `text` and one of the exact labels `Sensitive` or
+`Non-sensitive`:
 
 ```json
 {"text": "...", "label": "Sensitive"}
 ```
 
-The labels must be exactly `Sensitive` or `Non-sensitive`.
+The paper evaluates English sentence-level classification. SPY preparation and
+licensing remain the responsibility of the user; benchmark data are not
+redistributed here.
 
-## Reproduction
+## Reproduce an experiment
 
 Run from the repository root.
 
-### 1. Prepare seed pools
-
 ```bash
 bash scripts/00_prepare.sh
-```
 
-This validates the data and writes reproducible seed pools to
-`outputs/seed_pools/`.
-
-### 2. Generate synthetic training data
-
-Keep vLLM running while this step executes.
-
-```bash
 DATASETS=spedac1,spy \
-METHODS=rubric_guided_contrastive_synthesis \
+METHODS=rubric_guided_contrastive_synthesis,self_instruct_faithful_neutral \
 N_SAMPLES=2000 \
 CONCURRENCY=4 \
 bash scripts/01_generate.sh
-```
 
-To use a different model or endpoint:
-
-```bash
-MODEL=Qwen/Qwen3.5-9B \
-VLLM_URL=http://localhost:8000/v1 \
+# Stop vLLM first if RoBERTa needs the same GPUs.
 DATASETS=spedac1,spy \
-METHODS=rubric_guided_contrastive_synthesis \
-N_SAMPLES=2000 \
-bash scripts/01_generate.sh
-```
-
-### 3. Train and evaluate RoBERTa
-
-Stop vLLM first if it shares the same GPUs used for RoBERTa training.
-
-Single GPU:
-
-```bash
-DATASETS=spedac1,spy \
-METHODS=rubric_guided_contrastive_synthesis \
-bash scripts/02_train_eval.sh
-```
-
-Two GPUs:
-
-```bash
-DATASETS=spedac1,spy \
-METHODS=rubric_guided_contrastive_synthesis \
-bash scripts/02_train_eval_2gpu.sh
-```
-
-### 4. Aggregate results
-
-```bash
-DATASETS=spedac1,spy \
-METHODS=rubric_guided_contrastive_synthesis \
-bash scripts/03_aggregate.sh
-```
-
-The aggregate files are written under the selected output root:
-
-```text
-outputs/runs/summary.csv
-outputs/runs/summary.json
-outputs/runs/summary.md
-```
-
-## Baselines
-
-The following training-data baselines are included:
-
-```text
-official_train
-duplicate
-oneshot
-fewshot
-paraphrase
-```
-
-Run all classifier-training methods:
-
-```bash
-DATASETS=spedac1,spy \
-METHODS=official_train,duplicate,oneshot,fewshot,paraphrase,rubric_guided_contrastive_synthesis \
-N_SAMPLES=2000 \
-bash scripts/01_generate.sh
-
-DATASETS=spedac1,spy \
-METHODS=official_train,duplicate,oneshot,fewshot,paraphrase,rubric_guided_contrastive_synthesis \
+METHODS=rubric_guided_contrastive_synthesis,self_instruct_faithful_neutral \
 bash scripts/02_train_eval_2gpu.sh
 
 DATASETS=spedac1,spy \
-METHODS=official_train,duplicate,oneshot,fewshot,paraphrase,rubric_guided_contrastive_synthesis \
+METHODS=rubric_guided_contrastive_synthesis,self_instruct_faithful_neutral \
 bash scripts/03_aggregate.sh
 ```
 
-`official_train` does not require synthetic generation, so it is skipped during
-the generation stage.
+All classifier-training methods can be selected with:
 
-## Useful CLI Examples
-
-Dry-run the generation plan:
-
-```bash
-uv run paper-bench --stage generate --datasets spedac1 --methods rubric_guided_contrastive_synthesis --dry-run
+```text
+official_train,duplicate,oneshot,fewshot,paraphrase,
+self_instruct_faithful_neutral,rubric_guided_contrastive_synthesis
 ```
 
-Use a smaller smoke-test sample size:
+Dry-run the execution plan before starting generation:
 
 ```bash
-DATASETS=spedac1 \
-METHODS=rubric_guided_contrastive_synthesis \
-N_SAMPLES=4 \
-CONCURRENCY=1 \
-ATTEMPT_CAP=40 \
-bash scripts/01_generate.sh
+uv run paper-bench \
+  --stage generate \
+  --datasets spedac1 \
+  --methods rubric_guided_contrastive_synthesis,self_instruct_faithful_neutral \
+  --dry-run
 ```
 
-Use a custom output root:
+## Development checks
 
 ```bash
-OUTPUT_ROOT=outputs/qwen_n2000 \
-DATASETS=spedac1,spy \
-METHODS=rubric_guided_contrastive_synthesis \
-bash scripts/01_generate.sh
+uv run ruff check .
+uv run pytest
 ```
+
+## License
+
+Code is released under the Apache License 2.0. Upstream benchmark data remain
+subject to their original terms.

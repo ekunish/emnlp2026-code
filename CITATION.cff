@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software or its artifacts, please cite the EMNLP 2026 paper."
+title: "Training Lightweight PII Text Detectors via Rubric-Guided Contrastive Data Synthesis"
+type: software
+license: Apache-2.0
+repository-code: "https://github.com/ekunish/emnlp2026-code"
+authors:
+  - family-names: Ekuni
+    given-names: Shota
+    orcid: "https://orcid.org/0009-0004-7930-0125"
+  - family-names: Zeng
+    given-names: Jie
+    orcid: "https://orcid.org/0009-0000-5303-3461"
+  - family-names: Kobashi
+    given-names: Yohei
+    orcid: "https://orcid.org/0009-0009-4469-3164"
+  - family-names: Kojima
+    given-names: Takeshi
+    orcid: "https://orcid.org/0000-0002-4081-7854"
+  - family-names: Iwasawa
+    given-names: Yusuke
+    orcid: "https://orcid.org/0000-0002-1321-2622"
+  - family-names: Matsuo
+    given-names: Yutaka
+    orcid: "https://orcid.org/0000-0002-2106-8907"
+date-released: 2026-08-29

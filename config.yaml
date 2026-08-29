@@ -15,12 +15,14 @@ methods:
     - oneshot
     - fewshot
     - paraphrase
+    - self_instruct_faithful_neutral
     - rubric_guided_contrastive_synthesis
   direct_judge:
     - oneshot_judge
     - fewshot_judge
 
 custom_methods:
+  self_instruct_faithful_neutral: pii_bench.self_instruct_faithful_neutral:self_instruct_faithful_neutral
   rubric_guided_contrastive_synthesis: pii_bench.rubric_guided_contrastive_synthesis:rubric_guided_contrastive_synthesis
 
 generation:
@@ -51,6 +53,13 @@ rubric_guided_contrastive_synthesis:
   rubric_max_tokens: 900
   pair_max_tokens: 420
   verifier_max_tokens: 260
+
+self_instruct_faithful_neutral:
+  instructions_per_step: 2
+  verifier_temperature: 0.0
+  instruction_max_tokens: 400
+  instance_max_tokens: 220
+  verifier_max_tokens: 200
 
 direct_judge:
   model: Qwen/Qwen3.5-9B
